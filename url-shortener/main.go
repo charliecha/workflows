@@ -24,6 +24,7 @@ func main() {
 	r.Use(middleware.Recoverer)
 
 	r.Post("/shorten", handler.ShortenHandler(s, baseURL))
+	r.Get("/{code}/qr", handler.QRHandler(s, baseURL))
 	r.Get("/{code}", handler.RedirectHandler(s))
 	r.Get("/{code}/stats", handler.StatsHandler(s))
 
