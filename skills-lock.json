@@ -1,0 +1,77 @@
+{
+  "version": 1,
+  "skills": {
+    "code-to-spec": {
+      "source": "smallnest/goal-workflow",
+      "sourceType": "github",
+      "skillPath": "skills/code-to-spec/SKILL.md",
+      "computedHash": "bcaa5521393b394e5dd268117c514c0a25e680bd130f9b95c17d85a6255cdc3a"
+    },
+    "humanize-it": {
+      "source": "smallnest/goal-workflow",
+      "sourceType": "github",
+      "skillPath": "skills/humanize-it/SKILL.md",
+      "computedHash": "3e4e025c74cce354bf1a2d0cb795e63ffcffbeaca4a5de07760ba54b78e38f6f"
+    },
+    "insight-diagram": {
+      "source": "smallnest/goal-workflow",
+      "sourceType": "github",
+      "skillPath": "skills/insight-diagram/SKILL.md",
+      "computedHash": "c1a8d2129cd4c1806ec19b93f1870fbff47e19bab6b1c265bce790072c81fca9"
+    },
+    "listenhub-tts": {
+      "source": "smallnest/goal-workflow",
+      "sourceType": "github",
+      "skillPath": "skills/listenhub-tts/SKILL.md",
+      "computedHash": "19af01711e1a9d694591ec57e14b0661f5f036aa6dca097ab8d513532f4b80a6"
+    },
+    "modern-go": {
+      "source": "smallnest/goal-workflow",
+      "sourceType": "github",
+      "skillPath": "skills/modern-go/SKILL.md",
+      "computedHash": "fbb113f0bd2f44c8fcba7a712f65a27c6745fdc152961dcc29df724cf6d4b320"
+    },
+    "note-it": {
+      "source": "smallnest/goal-workflow",
+      "sourceType": "github",
+      "skillPath": "skills/note-it/SKILL.md",
+      "computedHash": "7b3dd3cdd70cf31ff2e347030da3674d0e165390f17ff01fbaeb3a1fae3e9166"
+    },
+    "prd": {
+      "source": "smallnest/goal-workflow",
+      "sourceType": "github",
+      "skillPath": "skills/prd/SKILL.md",
+      "computedHash": "879a66ef5e6af320f7b47fa3c068627de31b6bccfe44a30dc7779b5ed948d37a"
+    },
+    "prd-to-spec": {
+      "source": "smallnest/goal-workflow",
+      "sourceType": "github",
+      "skillPath": "skills/prd-to-spec/SKILL.md",
+      "computedHash": "e0d17d241528f61136984fbb574f8b0e8bb9d7f4964d011cfbd2dd9651c43c0e"
+    },
+    "refactor": {
+      "source": "smallnest/goal-workflow",
+      "sourceType": "github",
+      "skillPath": "skills/refactor/SKILL.md",
+      "computedHash": "bb8386e207dd3c1bf29b0e84718e88a76ecef4119ce99daf9127dcfd10e3bbe0"
+    },
+    "review-it": {
+      "source": "smallnest/goal-workflow",
+      "sourceType": "github",
+      "skillPath": "skills/review-it/SKILL.md",
+      "computedHash": "5f7719e09785039109b413e9988da0edb4fee19d1b4a9fef5a8715f781f4391d"
+    },
+    "ship-it": {
+      "source": "smallnest/goal-workflow",
+      "sourceType": "github",
+      "skillPath": "skills/ship-it/SKILL.md",
+      "computedHash": "6c8bfbb9b3ab57294302acbefc2afad25ab29b990e45594f8c7e0d6bae39f799"
+    },
+    "to-issues": {
+      "source": "smallnest/goal-workflow",
+      "sourceType": "github",
+      "skillPath": "skills/to-issues/SKILL.md",
+      "computedHash": "6b1d1a612e26ac8aae97e56d64b42c9346be4233cb59b559a22f2bce87634966"
+    }
+  }
+}
