@@ -14,8 +14,10 @@ import (
 const base62Chars = "0123456789abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ"
 const codeLen = 6
 const maxAccesses = 100
+const defaultTTL = 30 * 24 * time.Hour
 
 var ErrNotFound = errors.New("short code not found")
+var ErrExpired = errors.New("short link has expired")
 
 type AccessRecord struct {
 	Time      time.Time `json:"time"`
@@ -28,6 +30,7 @@ type StatsResponse struct {
 	OriginalURL string         `json:"original_url"`
 	TotalClicks int64          `json:"total_clicks"`
 	CreatedAt   time.Time      `json:"created_at"`
+	ExpiresAt   *time.Time     `json:"expires_at,omitempty"`
 	Accesses    []AccessRecord `json:"accesses"`
 }
 
@@ -35,6 +38,7 @@ type shortLink struct {
 	shortCode   string
 	originalURL string
 	createdAt   time.Time
+	expiresAt   time.Time
 	clicks      atomic.Int64
 	accesses    [maxAccesses]AccessRecord
 	accessHead  int
@@ -72,7 +76,7 @@ func (l *shortLink) getAccesses() []AccessRecord {
 }
 
 type Storer interface {
-	Shorten(originalURL string) (string, error)
+	Shorten(originalURL string, ttl int) (string, time.Time, error)
 	Resolve(shortCode string) (string, error)
 	RecordAccess(shortCode, referer, userAgent string) error
 	Stats(shortCode string) (*StatsResponse, error)
@@ -91,11 +95,21 @@ func NewStore() *Store {
 	}
 }
 
-func (s *Store) Shorten(originalURL string) (string, error) {
+func (s *Store) Shorten(originalURL string, ttl int) (string, time.Time, error) {
+	if ttl == 0 {
+		ttl = int(defaultTTL.Seconds())
+	}
+	expiresAt := time.Now().UTC().Add(time.Duration(ttl) * time.Second)
+
 	s.mu.RLock()
 	if code, ok := s.urls[originalURL]; ok {
-		s.mu.RUnlock()
-		return code, nil
+		existing := s.links[code]
+		// If the existing link is still live, return it as-is (TTL is set-once per URL).
+		// If expired, fall through to create a fresh entry below.
+		if existing.expiresAt.IsZero() || time.Now().UTC().Before(existing.expiresAt) {
+			s.mu.RUnlock()
+			return code, existing.expiresAt, nil
+		}
 	}
 	s.mu.RUnlock()
 
@@ -103,7 +117,13 @@ func (s *Store) Shorten(originalURL string) (string, error) {
 	defer s.mu.Unlock()
 	// re-check after acquiring write lock
 	if code, ok := s.urls[originalURL]; ok {
-		return code, nil
+		existing := s.links[code]
+		if existing.expiresAt.IsZero() || time.Now().UTC().Before(existing.expiresAt) {
+			return code, existing.expiresAt, nil
+		}
+		// Expired: remove stale entry so the loop can mint a new code.
+		delete(s.links, code)
+		delete(s.urls, originalURL)
 	}
 	for attempt := 0; attempt < 10; attempt++ {
 		code := generateCode(originalURL, attempt)
@@ -113,15 +133,16 @@ func (s *Store) Shorten(originalURL string) (string, error) {
 				shortCode:   code,
 				originalURL: originalURL,
 				createdAt:   time.Now().UTC(),
+				expiresAt:   expiresAt,
 			}
 			s.urls[originalURL] = code
-			return code, nil
+			return code, expiresAt, nil
 		}
 		if existing.originalURL == originalURL {
-			return code, nil
+			return code, existing.expiresAt, nil
 		}
 	}
-	return "", errors.New("failed to generate unique short code")
+	return "", time.Time{}, errors.New("failed to generate unique short code")
 }
 
 func (s *Store) Resolve(shortCode string) (string, error) {
@@ -130,6 +151,9 @@ func (s *Store) Resolve(shortCode string) (string, error) {
 	link, ok := s.links[shortCode]
 	if !ok {
 		return "", ErrNotFound
+	}
+	if !link.expiresAt.IsZero() && time.Now().UTC().After(link.expiresAt) {
+		return "", ErrExpired
 	}
 	return link.originalURL, nil
 }
@@ -152,13 +176,18 @@ func (s *Store) Stats(shortCode string) (*StatsResponse, error) {
 	if !ok {
 		return nil, ErrNotFound
 	}
-	return &StatsResponse{
+	resp := &StatsResponse{
 		ShortCode:   link.shortCode,
 		OriginalURL: link.originalURL,
 		TotalClicks: link.clicks.Load(),
 		CreatedAt:   link.createdAt,
 		Accesses:    link.getAccesses(),
-	}, nil
+	}
+	if !link.expiresAt.IsZero() {
+		t := link.expiresAt
+		resp.ExpiresAt = &t
+	}
+	return resp, nil
 }
 
 func generateCode(originalURL string, attempt int) string {

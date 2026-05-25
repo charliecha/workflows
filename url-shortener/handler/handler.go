@@ -6,8 +6,10 @@ import (
 	"fmt"
 	"net/http"
 	"net/url"
+	"time"
 
 	"github.com/go-chi/chi/v5"
+	"github.com/skip2/go-qrcode"
 	"github.com/user/url-shortener/store"
 )
 
@@ -15,11 +17,14 @@ const maxURLLength = 2048
 
 type shortenRequest struct {
 	URL string `json:"url"`
+	TTL int    `json:"ttl"`
 }
 
 type shortenResponse struct {
-	ShortCode string `json:"short_code"`
-	ShortURL  string `json:"short_url"`
+	ShortCode string    `json:"short_code"`
+	ShortURL  string    `json:"short_url"`
+	QRUrl     string    `json:"qr_url"`
+	ExpiresAt time.Time `json:"expires_at"`
 }
 
 type errorResponse struct {
@@ -61,7 +66,11 @@ func ShortenHandler(s store.Storer, baseURL string) http.HandlerFunc {
 			writeError(w, http.StatusBadRequest, err.Error())
 			return
 		}
-		code, err := s.Shorten(req.URL)
+		if req.TTL < 0 {
+			writeError(w, http.StatusBadRequest, "ttl must be a non-negative integer")
+			return
+		}
+		code, expiresAt, err := s.Shorten(req.URL, req.TTL)
 		if err != nil {
 			writeError(w, http.StatusInternalServerError, "failed to generate short code")
 			return
@@ -69,6 +78,8 @@ func ShortenHandler(s store.Storer, baseURL string) http.HandlerFunc {
 		writeJSON(w, http.StatusOK, shortenResponse{
 			ShortCode: code,
 			ShortURL:  baseURL + "/" + code,
+			QRUrl:     baseURL + "/" + code + "/qr",
+			ExpiresAt: expiresAt,
 		})
 	}
 }
@@ -78,6 +89,10 @@ func RedirectHandler(s store.Storer) http.HandlerFunc {
 		code := chi.URLParam(r, "code")
 		originalURL, err := s.Resolve(code)
 		if err != nil {
+			if errors.Is(err, store.ErrExpired) {
+				writeError(w, http.StatusGone, "short link has expired")
+				return
+			}
 			writeError(w, http.StatusNotFound, "short code not found")
 			return
 		}
@@ -95,5 +110,28 @@ func StatsHandler(s store.Storer) http.HandlerFunc {
 			return
 		}
 		writeJSON(w, http.StatusOK, stats)
+	}
+}
+
+// QRHandler has no rate limiting — add chi/httprate middleware before exposing publicly.
+func QRHandler(s store.Storer, baseURL string) http.HandlerFunc {
+	return func(w http.ResponseWriter, r *http.Request) {
+		code := chi.URLParam(r, "code")
+		if _, err := s.Resolve(code); err != nil {
+			if errors.Is(err, store.ErrExpired) {
+				writeError(w, http.StatusGone, "short link has expired")
+				return
+			}
+			writeError(w, http.StatusNotFound, "short code not found")
+			return
+		}
+		png, err := qrcode.Encode(baseURL+"/"+code, qrcode.Medium, 256)
+		if err != nil {
+			writeError(w, http.StatusInternalServerError, "failed to generate QR code")
+			return
+		}
+		w.Header().Set("Content-Type", "image/png")
+		w.WriteHeader(http.StatusOK)
+		w.Write(png)
 	}
 }
